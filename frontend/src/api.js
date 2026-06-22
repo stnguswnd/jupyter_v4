@@ -44,7 +44,15 @@ async function request(path, { method = 'GET', body } = {}) {
 export const api = {
   base: BASE,
 
-  createUser: () => request('/users', { method: 'POST', body: {} }),
+  listUsers: () => request('/users'),
+
+  getNextUserId: () => request('/users/next-id'),
+
+  createUser: (userId) =>
+    request('/users', {
+      method: 'POST',
+      body: userId ? { user_id: userId } : {},
+    }),
 
   deleteUser: (userId) => request(`/users/${userId}`, { method: 'DELETE' }),
 

@@ -162,7 +162,8 @@ class ConversationStore:
                 rows = c.execute(
                     "SELECT role,content,created_at FROM turns WHERE user_id=? AND thread_id=? ORDER BY id DESC LIMIT ?",
                     (user_id, thread_id, limit)).fetchall()
-            if not rows:
+            if not rows and thread_id is None:
+                # thread_id가 없을 때만 user 전체로 폴백. thread가 지정되면 해당 thread로 한정(대화 분리).
                 rows = c.execute(
                     "SELECT role,content,created_at FROM turns WHERE user_id=? ORDER BY id DESC LIMIT ?",
                     (user_id, limit)).fetchall()
@@ -176,7 +177,7 @@ class ConversationStore:
                 rows = c.execute(
                     "SELECT name,value,unit,created_at FROM machine_values WHERE user_id=? AND thread_id=? ORDER BY id DESC",
                     (user_id, thread_id)).fetchall()
-            if not rows:
+            if not rows and thread_id is None:
                 rows = c.execute(
                     "SELECT name,value,unit,created_at FROM machine_values WHERE user_id=? ORDER BY id DESC",
                     (user_id,)).fetchall()
@@ -193,7 +194,7 @@ class ConversationStore:
                 row = c.execute(
                     "SELECT content FROM summaries WHERE user_id=? AND thread_id=? AND kind=? ORDER BY id DESC LIMIT 1",
                     (user_id, thread_id, kind)).fetchone()
-            if row is None:
+            if row is None and thread_id is None:
                 row = c.execute(
                     "SELECT content FROM summaries WHERE user_id=? AND kind=? ORDER BY id DESC LIMIT 1",
                     (user_id, kind)).fetchone()

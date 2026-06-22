@@ -17,6 +17,18 @@ class CreateThreadBody(BaseModel):
     title: str | None = None
 
 
+@router.get("/users")
+def list_users() -> dict:
+    """등록된 사용자 목록(기존 사용자 선택용)."""
+    return {"users": registry.list_users()}
+
+
+@router.get("/users/next-id")
+def next_user_id() -> dict:
+    """다음 순번 user_id 제안값(모달 입력칸 기본값용)."""
+    return {"user_id": registry.next_user_id()}
+
+
 @router.post("/users")
 def create_user(body: CreateUserBody | None = None) -> dict:
     user_id = body.user_id if body is not None else None

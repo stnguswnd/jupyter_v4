@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sqlite3
 import uuid
 import datetime as _dt
@@ -43,10 +44,30 @@ class UserThreadRegistry:
         return _dt.datetime.now().isoformat(timespec="seconds")
 
     # --- users ---
-    def create_user(self, user_id: str | None = None) -> dict:
-        if user_id is None:
-            user_id = uuid.uuid4().hex
+    def next_user_id(self) -> str:
+        """다음 순번 user_id (user_1, user_2, ...). 기존 user_N 최대값+1, 충돌 시 다음."""
         with closing(sqlite3.connect(self.db_path)) as c, c:
+            return self._next_user_id(c)
+
+    def _next_user_id(self, c) -> str:
+        max_n = 0
+        for (uid,) in c.execute("SELECT user_id FROM users").fetchall():
+            m = re.fullmatch(r"user_(\d+)", uid or "")
+            if m:
+                max_n = max(max_n, int(m.group(1)))
+        n = max_n + 1
+        uid = f"user_{n}"
+        while c.execute("SELECT 1 FROM users WHERE user_id=?", (uid,)).fetchone():
+            n += 1
+            uid = f"user_{n}"
+        return uid
+
+    def create_user(self, user_id: str | None = None) -> dict:
+        with closing(sqlite3.connect(self.db_path)) as c, c:
+            if user_id is None or not str(user_id).strip():
+                user_id = self._next_user_id(c)  # 비우면 user_N 순번 자동 부여
+            else:
+                user_id = str(user_id).strip()
             row = c.execute(
                 "SELECT user_id, created_at FROM users WHERE user_id=?", (user_id,)
             ).fetchone()
@@ -130,6 +151,16 @@ class UserThreadRegistry:
                 (thread_id, user_id),
             ).fetchone()
         return row is not None
+
+    def list_users(self) -> list[dict]:
+        """등록된 사용자 목록(+ 각자의 thread 수)을 최신순으로 반환."""
+        with closing(sqlite3.connect(self.db_path)) as c, c:
+            rows = c.execute(
+                "SELECT u.user_id, u.created_at, "
+                "(SELECT COUNT(*) FROM threads t WHERE t.user_id = u.user_id) AS thread_count "
+                "FROM users u ORDER BY u.created_at DESC, u.rowid DESC",
+            ).fetchall()
+        return [{"user_id": r[0], "created_at": r[1], "thread_count": r[2]} for r in rows]
 
     def list_threads(self, user_id: str) -> list[dict]:
         with closing(sqlite3.connect(self.db_path)) as c, c:
